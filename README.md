@@ -16,20 +16,29 @@ Static analysis tool for detecting style violations and sensitive data leaks in 
 ### Standalone
 
 #### Variant 1
+
 ```bash
 go install github.com/Sene4ka/loglint/cmd/loglint@latest
 ```
 #### Variant 2
+
 ```bash
 git clone https://github.com/Sene4ka/loglint.git
-cd log-linter
+cd loglint
+```
 
+```bash
 go build -o loglint ./cmd/loglint
-# Or
+```
+
+Or
+
+```bash
 go install ./cmd/loglint
 ```
 
 #### Usage
+
 ```bash
 # Run with auto-detected .loglint.yml
 loglint ./...
