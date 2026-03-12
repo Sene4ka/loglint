@@ -10,7 +10,7 @@ settings:
     loglint:
       type: "module"
       description: "Static analysis tool for detecting style violations and sensitive data leaks in Go log messages."
-      original-url: "github.com/Sene4ka/log-linter"
+      original-url: "github.com/Sene4ka/loglint"
       settings:
         allowed_special_symbols: '! . ,' # default ': _ - = %'
         sensitive_keywords: 'word1,word2' # default 'key,password,secret,auth,token'
