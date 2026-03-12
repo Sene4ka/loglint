@@ -7,7 +7,7 @@ import (
 )
 
 var Analyzer = &analysis.Analyzer{
-	Name: "log-lint",
+	Name: "loglint",
 	Doc:  "reports wrong log function usage",
 	Run:  run,
 }
@@ -20,7 +20,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return true
 			}
 
-			if !isSupportedLoggerCall(call) {
+			if !isSupportedLoggerCall(call, pass) {
 				return true
 			}
 
@@ -28,15 +28,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return true
 			}
 
-			msg, pos, ok := getStringLiteral(call.Args[0])
-			if !ok {
-				return true
-			}
+			parts := getStringLiterals(call.Args[0])
 
-			checkLowercaseStart(msg, pos, pass)
-			checkOnlyLatinLetters(msg, pos, pass)
-			checkNoSpecialSymbols(msg, pos, pass)
-			checkNoKeywords(msg, pos, pass)
+			parts = foldConstantStrings(parts)
+
+			checkLowercaseStart(parts, pass)
+			checkOnlyLatinLetters(parts, pass)
+			checkNoSpecialSymbols(parts, pass)
+			checkNoSensitiveKeywordsAndVariables(parts, pass)
 
 			return true
 		})
