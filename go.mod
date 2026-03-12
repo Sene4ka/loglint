@@ -1,4 +1,4 @@
-module github.com/Sene4ka/log-linter
+module github.com/Sene4ka/loglint
 
 go 1.24.2
 
