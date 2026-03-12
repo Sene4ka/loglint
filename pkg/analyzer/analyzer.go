@@ -28,14 +28,22 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return true
 			}
 
-			parts := getStringLiterals(call.Args[0])
+			parts := make([]ExprPart, 0, 2)
+
+			parts = getExpressionParts(call.Args[0], parts)
 
 			parts = foldConstantStrings(parts)
 
-			checkLowercaseStart(parts, pass)
-			checkOnlyLatinLetters(parts, pass)
-			checkNoSpecialSymbols(parts, pass)
-			checkNoSensitiveKeywordsAndVariables(parts, pass)
+			if len(call.Args) > 1 {
+				for _, arg := range call.Args[1:] {
+					parts = getExpressionParts(arg, parts)
+				}
+			}
+
+			checkShouldStartWithLowercase(parts, pass)
+			checkShouldContainOnlyEnglish(parts, pass)
+			checkShouldNotContainSpecialSymbols(parts, pass)
+			checkShouldNotContainSensitiveInformation(parts, pass)
 
 			return true
 		})

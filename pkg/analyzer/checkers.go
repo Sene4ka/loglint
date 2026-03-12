@@ -2,13 +2,14 @@ package analyzer
 
 import (
 	"go/token"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
 )
 
-func checkLowercaseStart(parts []VarPart, pass *analysis.Pass) {
+func checkShouldStartWithLowercase(parts []ExprPart, pass *analysis.Pass) {
 	for _, part := range parts {
 		if part.Type == PartVar {
 			continue
@@ -52,7 +53,7 @@ func checkLowercaseStart(parts []VarPart, pass *analysis.Pass) {
 	}
 }
 
-func checkOnlyLatinLetters(parts []VarPart, pass *analysis.Pass) {
+func checkShouldContainOnlyEnglish(parts []ExprPart, pass *analysis.Pass) {
 	for _, part := range parts {
 		if part.Type == PartVar {
 			continue
@@ -79,12 +80,11 @@ func checkOnlyLatinLetters(parts []VarPart, pass *analysis.Pass) {
 	}
 }
 
-func checkNoSpecialSymbols(parts []VarPart, pass *analysis.Pass) {
+func checkShouldNotContainSpecialSymbols(parts []ExprPart, pass *analysis.Pass) {
 	for _, part := range parts {
 		if part.Type == PartVar {
 			continue
 		}
-
 		msg := part.Value
 		pos := part.Pos
 		if len(msg) == 0 {
@@ -105,11 +105,31 @@ func checkNoSpecialSymbols(parts []VarPart, pass *analysis.Pass) {
 	}
 }
 
-func checkNoSensitiveKeywordsAndVariables(parts []VarPart, pass *analysis.Pass) {
+func checkShouldNotContainSensitiveInformation(parts []ExprPart, pass *analysis.Pass) {
+	varsCnt := 0
+	for _, part := range parts {
+		if part.Type == PartVar {
+			varsCnt++
+		}
+	}
+
+	vars := make([]ExprPart, 0, varsCnt)
+	diagnosedVars := make([]bool, varsCnt)
+	varIdx := make(map[int]int, varsCnt)
+	varReverseIdx := make(map[int]int, varsCnt)
+
+	for i, part := range parts {
+		if part.Type == PartVar {
+			varIdx[i] = len(vars)
+			varReverseIdx[len(vars)] = i
+			vars = append(vars, part)
+		}
+	}
+
 	for i, part := range parts {
 		if part.Type == PartConst {
-			for _, r := range config.sensitiveKeywordsRegex {
-				if matches := r.FindAllStringIndex(part.Value, -1); len(matches) > 0 && i+1 < len(parts) && parts[i+1].Type == PartVar {
+			for kIndex, r := range config.sensitiveKeywordsRegex {
+				if matches := r.FindAllStringIndex(part.Value, -1); len(matches) > 0 && varsCnt > 0 {
 					for _, match := range matches {
 						pass.Report(analysis.Diagnostic{
 							Pos:      part.Pos + token.Pos(match[0]),
@@ -118,17 +138,33 @@ func checkNoSensitiveKeywordsAndVariables(parts []VarPart, pass *analysis.Pass) 
 							Message:  "log message should not contain sensitive information",
 						})
 					}
+					for j, v := range vars {
+						if !diagnosedVars[j] {
+							found := strings.Contains(v.Value, config.SensitiveKeywords[kIndex])
+							if found {
+								diagnosedVars[j] = true
+								pass.Report(analysis.Diagnostic{
+									Pos:      part.Pos,
+									End:      part.End,
+									Category: "Warning",
+									Message:  "log message should not contain sensitive information",
+								})
+							}
+						}
+					}
 				}
 			}
 		} else if part.Type == PartVar {
-			for _, kw := range config.SensitiveKeywords {
-				if part.Value == kw {
-					pass.Report(analysis.Diagnostic{
-						Pos:      part.Pos,
-						End:      part.End,
-						Category: "Warning",
-						Message:  "log message should not contain sensitive information",
-					})
+			if res, ok := varIdx[i]; ok && !diagnosedVars[res] {
+				for _, kw := range config.SensitiveKeywords {
+					if part.Value == kw {
+						pass.Report(analysis.Diagnostic{
+							Pos:      part.Pos,
+							End:      part.End,
+							Category: "Warning",
+							Message:  "log message should not contain sensitive information",
+						})
+					}
 				}
 			}
 		}

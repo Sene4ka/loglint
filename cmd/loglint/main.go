@@ -9,7 +9,14 @@ import (
 func main() {
 	config := analyzer.NewConfig(
 		[]rune{':', '_', '='},
-		[]string{"key", "password", "secret", "apiKey", "api_key", "auth", "token", "auth_token", "authToken"})
+		[]string{"key", "password", "secret", "apiKey", "api_key", "auth", "token", "auth_token", "authToken"},
+		map[string]bool{
+			"shouldStartWithLowercase":             true,
+			"shouldContainOnlyEnglish":             true,
+			"shouldNotContainSpecialSymbols":       true,
+			"shouldNotContainSensitiveInformation": true,
+		},
+	)
 	analyzer.UseConfig(config)
 
 	singlechecker.Main(analyzer.Analyzer)

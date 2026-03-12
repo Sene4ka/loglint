@@ -16,11 +16,11 @@ var loggers = map[string][]string{
 }
 
 /*
-VarPart is a type for elements of logger call expression first argument
-ex. in log.Print("password: " + password) there is 2 VarPart objects
+ExprPart is a type for elements of logger call expression first argument
+ex. in log.Print("password: " + password) there is 2 ExprPart objects
 "password: " of PartConst and password of PartVar types
 */
-type VarPart struct {
+type ExprPart struct {
 	Value string
 	Pos   token.Pos
 	End   token.Pos
@@ -62,6 +62,8 @@ func isSupportedLoggerCall(call *ast.CallExpr, pass *analysis.Pass) bool {
 			typeStr := tp.String()
 			if strings.Contains(typeStr, "zap.Logger") {
 				selName = "zap"
+			} else if strings.Contains(typeStr, "slog.Logger") {
+				selName = "slog"
 			}
 		}
 	}
@@ -81,48 +83,45 @@ func isSupportedLoggerCall(call *ast.CallExpr, pass *analysis.Pass) bool {
 	return false
 }
 
-// recursively parse AST node to format it into VarPart array in appearance order
-func getStringLiterals(expr ast.Expr) []VarPart {
+// recursively parse AST node to format it into ExprPart array in appearance order and append them in output array
+func getExpressionParts(expr ast.Expr, output []ExprPart) []ExprPart {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
 		if e.Kind == token.STRING {
 			val, _ := strconv.Unquote(e.Value)
-			return []VarPart{{
+			return append(output, ExprPart{
 				Value: val,
 				Pos:   e.Pos() + 1,
 				End:   e.End() - 1,
 				Type:  PartConst,
-			}}
+			})
 		}
 	case *ast.BinaryExpr:
 		if e.Op == token.ADD {
-			left := getStringLiterals(e.X)
-			right := getStringLiterals(e.Y)
-			return mergeArrays(left, right)
+			output = getExpressionParts(e.X, output)
+			return getExpressionParts(e.Y, output)
 		}
 	case *ast.Ident:
-		return []VarPart{{
+		return append(output, ExprPart{
 			Value: e.Name,
 			Pos:   e.Pos(),
 			End:   e.End(),
 			Type:  PartVar,
-		}}
+		})
+	case *ast.CallExpr:
+		for _, arg := range e.Args {
+			output = getExpressionParts(arg, output)
+		}
+		return output
 	}
 
 	// return PartOther to naturally separate sequence of PartConst strings preventing their merging later
-	return []VarPart{{
+	return append(output, ExprPart{
 		Value: "",
 		Pos:   token.NoPos,
 		End:   token.NoPos,
 		Type:  PartOther,
-	}}
-}
-
-func mergeArrays[T any](a, b []T) []T {
-	result := make([]T, len(a)+len(b))
-	copy(result, a)
-	copy(result[len(a):], b)
-	return result
+	})
 }
 
 /*
@@ -130,7 +129,7 @@ merge continuous sequences of PartConst strings so we can detect harder sensitiv
 like log.Print("a" + "u" + "t" + "h" + "_token: " + auth_token) will in the end merge into
 {PartConst{Value: "auth_token"}, PartVar{Value: "auth_token"}}
 */
-func foldConstantStrings(parts []VarPart) []VarPart {
+func foldConstantStrings(parts []ExprPart) []ExprPart {
 	estimatedLen := 0
 	constLen := 0
 	valueLen := 0
@@ -147,7 +146,7 @@ func foldConstantStrings(parts []VarPart) []VarPart {
 		}
 	}
 
-	result := make([]VarPart, 0, estimatedLen)
+	result := make([]ExprPart, 0, estimatedLen)
 	builder := strings.Builder{}
 	builder.Grow(mxLen)
 	processed := 0
@@ -157,7 +156,7 @@ func foldConstantStrings(parts []VarPart) []VarPart {
 			builder.WriteString(part.Value)
 		} else {
 			if processed > 0 {
-				result = append(result, VarPart{
+				result = append(result, ExprPart{
 					Value: builder.String(),
 					Pos:   parts[i-processed].Pos,
 					End:   parts[i-1].End,
@@ -170,7 +169,7 @@ func foldConstantStrings(parts []VarPart) []VarPart {
 		}
 	}
 	if processed > 0 {
-		result = append(result, VarPart{
+		result = append(result, ExprPart{
 			Value: builder.String(),
 			Pos:   parts[len(parts)-processed].Pos,
 			End:   parts[len(parts)-1].End,
