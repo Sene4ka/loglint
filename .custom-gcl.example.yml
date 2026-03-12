@@ -1,6 +1,6 @@
 version: v2.4.0
 
 plugins:
-  - module: 'github.com/Sene4ka/log-linter'
-    import: 'github.com/Sene4ka/log-linter/pkg/analyzer'
-    version: v1.0.0
+  - module: 'github.com/Sene4ka/loglint'
+    import: 'github.com/Sene4ka/loglint/pkg/analyzer'
+    version: latest
