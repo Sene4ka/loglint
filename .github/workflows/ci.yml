@@ -20,7 +20,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         go-version: ['1.26.1']
-        golangci-lint-version: ['2.24.0']
+        golangci-lint-version: ['2.11.3']
 
     steps:
       - name: Checkout code
@@ -97,7 +97,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           version: ${{ matrix.golangci-lint-version }}
           args: --timeout=5m
