@@ -29,16 +29,6 @@ func coalesce(ptr *bool, defaultVal bool) bool {
 	return defaultVal
 }
 
-func DefaultRuleFlags() RuleFlags {
-	t := true
-	return RuleFlags{
-		ShouldStartWithLowercase:             &t,
-		ShouldContainOnlyEnglish:             &t,
-		ShouldNotContainSpecialSymbols:       &t,
-		ShouldNotContainSensitiveInformation: &t,
-	}
-}
-
 func parseAllowedSymbols(s string) []rune {
 	if s == "" {
 		return []rune{':', '_', '=', '%'} // дефолт

@@ -3,6 +3,7 @@ package loglint
 import (
 	"strings"
 
+	"github.com/creasty/defaults"
 	"github.com/golangci/plugin-module-register/register"
 	"golang.org/x/tools/go/analysis"
 )
@@ -12,23 +13,27 @@ func init() {
 }
 
 type PluginSettings struct {
-	AllowedSpecialSymbols string   `json:"allowed_special_symbols"`
-	SensitiveKeywords     []string `json:"sensitive_keywords"`
+	AllowedSpecialSymbols string   `json:"allowed_special_symbols" default:": _ - = %"`
+	SensitiveKeywords     []string `json:"sensitive_keywords" default:"[\"key\",\"password\",\"secret\",\"auth\",\"token\"]"`
 	Rules                 struct {
-		RuleLowercase bool `json:"rule_lowercase"`
-		RuleEnglish   bool `json:"rule_english"`
-		RuleSymbols   bool `json:"rule_symbols"`
-		RuleSensitive bool `json:"rule_sensitive"`
+		RuleLowercase bool `json:"rule_lowercase" default:"true"`
+		RuleEnglish   bool `json:"rule_english" default:"true"`
+		RuleSymbols   bool `json:"rule_symbols" default:"true"`
+		RuleSensitive bool `json:"rule_sensitive" default:"true"`
 	} `json:"rules"`
 }
 
-type loglintPlugin struct {
+type PluginLoglint struct {
 	cfg *Config
 }
 
 func New(settings any) (register.LinterPlugin, error) {
 	s, err := register.DecodeSettings[PluginSettings](settings)
 	if err != nil {
+		return nil, err
+	}
+
+	if err = defaults.Set(&s); err != nil {
 		return nil, err
 	}
 
@@ -45,13 +50,13 @@ func New(settings any) (register.LinterPlugin, error) {
 
 	UseConfig(cfg)
 
-	return &loglintPlugin{cfg: cfg}, nil
+	return &PluginLoglint{cfg: cfg}, nil
 }
 
-func (p *loglintPlugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
+func (p *PluginLoglint) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	return []*analysis.Analyzer{Analyzer}, nil
 }
 
-func (p *loglintPlugin) GetLoadMode() string {
+func (p *PluginLoglint) GetLoadMode() string {
 	return register.LoadModeTypesInfo
 }
