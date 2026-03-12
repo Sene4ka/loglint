@@ -13,7 +13,7 @@ linters-settings:
       original-url: "github.com/Sene4ka/log-linter"
       settings:
         allowed_special_symbols: '! . ,' # default ': _ - = %'
-        sensitive_keywords: 'word1,word2' # default 'key,password,secret,auth,token,server,name'
+        sensitive_keywords: 'word1,word2' # default 'key,password,secret,auth,token'
         rules:
           rule-lowercase: "false" # can be omitted (default "true")
           rule-english: "false" # can be omitted (default "true")

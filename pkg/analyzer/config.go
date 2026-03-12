@@ -53,7 +53,7 @@ func NewConfig(allowedSpecialSymbols []rune, sensitiveKeywords []string, rules m
 func DefaultConfig() *Config {
 	return NewConfig(
 		[]rune{':', '_', '-', '=', '%'},
-		[]string{"key", "password", "secret", "auth", "token", "server", "name"},
+		[]string{"key", "password", "secret", "auth", "token"},
 		map[string]bool{
 			"shouldStartWithLowercase":             true,
 			"shouldContainOnlyEnglish":             true,
@@ -64,7 +64,7 @@ func DefaultConfig() *Config {
 
 var config Config
 
-var configInitialized bool = false
+var configInitialized = false
 
 func UseConfig(cfg *Config) {
 	if configInitialized {
