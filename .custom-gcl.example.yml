@@ -3,4 +3,4 @@ version: v2.4.0
 plugins:
   - module: 'github.com/Sene4ka/log-linter'
     import: 'github.com/Sene4ka/log-linter/pkg/analyzer'
-    version: latest
+    version: main

@@ -14,7 +14,8 @@ settings:
       settings:
         allowed_special_symbols: '! . ,' # default ': _ - = %'
         sensitive_keywords: 'word1,word2' # default 'key,password,secret,auth,token'
-        rule-lowercase: "false" # can be omitted (default "true")
-        rule-english: "false" # can be omitted (default "true")
-        rule-symbols: "false" # can be omitted (default "true")
-        rule-sensitive: "false" # can be omitted (default "true")
+        rules:
+          rule-lowercase: "false" # can be omitted (default "true")
+          rule-english: "false" # can be omitted (default "true")
+          rule-symbols: "false" # can be omitted (default "true")
+          rule-sensitive: "false" # can be omitted (default "true")
