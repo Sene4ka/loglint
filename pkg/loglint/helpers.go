@@ -1,4 +1,4 @@
-package analyzer
+package loglint
 
 import (
 	"go/ast"
@@ -58,7 +58,7 @@ func isSupportedLoggerCall(call *ast.CallExpr, pass *analysis.Pass) bool {
 		if tp != nil {
 			// simple type check by name because we need mock package in testdata
 			// do actual type check instead if needed, or full string equality type check like "go.uber.org/zap.Logger"
-			// but it will crash analyzer tests because they can't use external dependencies
+			// but it will crash loglint tests because they can't use external dependencies
 			typeStr := tp.String()
 			if strings.Contains(typeStr, "zap.Logger") {
 				selName = "zap"

@@ -5,22 +5,22 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sene4ka/loglint/pkg/analyzer"
+	"github.com/Sene4ka/loglint/pkg/loglint"
 
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
 func main() {
-	analyzer.RegisterConfigFlag(flag.CommandLine)
+	loglint.RegisterConfigFlag(flag.CommandLine)
 
 	configPath := flag.Lookup("config").Value.String()
-	cfg, err := analyzer.LoadConfigFromFile(configPath)
+	cfg, err := loglint.LoadConfigFromFile(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "loglint: config error: %v\n", err)
-		cfg = analyzer.DefaultConfig()
+		cfg = loglint.DefaultConfig()
 	}
 
-	analyzer.UseConfig(cfg)
+	loglint.UseConfig(cfg)
 
-	singlechecker.Main(analyzer.Analyzer)
+	singlechecker.Main(loglint.Analyzer)
 }
