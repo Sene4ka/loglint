@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sene4ka/loglint/pkg/analyzer"
+	"github.com/Sene4ka/log-linter/pkg/analyzer"
 
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
