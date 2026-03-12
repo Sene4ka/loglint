@@ -8,7 +8,7 @@ import (
 )
 
 var Analyzer = &analysis.Analyzer{
-	Name:  "loglint",
+	Name:  "log-linter",
 	Doc:   "Static analysis tool for detecting style violations and sensitive data leaks in Go log messages.",
 	Run:   run,
 	Flags: flag.FlagSet{},
