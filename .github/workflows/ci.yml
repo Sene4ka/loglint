@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-        go-version: ['1.24.2']
+        go-version: ['1.26.1']
         golangci-lint-version: ['2.24.0']
 
     steps:
