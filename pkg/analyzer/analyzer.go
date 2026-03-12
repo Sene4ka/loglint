@@ -11,10 +11,14 @@ var Analyzer = &analysis.Analyzer{
 	Name:  "loglint",
 	Doc:   "Static analysis tool for detecting style violations and sensitive data leaks in Go log messages.",
 	Run:   run,
-	Flags: flag.FlagSet{},
+	Flags: *flag.NewFlagSet("loglint", flag.PanicOnError),
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	if config == nil {
+		config = DefaultConfig()
+	}
+
 	for _, file := range pass.Files {
 		ast.Inspect(file, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)

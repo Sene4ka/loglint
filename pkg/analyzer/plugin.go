@@ -15,14 +15,14 @@ type PluginSettings struct {
 	AllowedSpecialSymbols string   `json:"allowed_special_symbols"`
 	SensitiveKeywords     []string `json:"sensitive_keywords"`
 	Rules                 struct {
-		Lowercase bool `json:"rule-lowercase"`
-		English   bool `json:"rule-english"`
-		Symbols   bool `json:"rule-symbols"`
-		Sensitive bool `json:"rule-sensitive"`
+		RuleLowercase bool `json:"rule_lowercase"`
+		RuleEnglish   bool `json:"rule_english"`
+		RuleSymbols   bool `json:"rule_symbols"`
+		RuleSensitive bool `json:"rule_sensitive"`
 	} `json:"rules"`
 }
 
-type Plugin struct {
+type loglintPlugin struct {
 	cfg *Config
 }
 
@@ -36,22 +36,22 @@ func New(settings any) (register.LinterPlugin, error) {
 		s.AllowedSpecialSymbols,
 		strings.Join(s.SensitiveKeywords, ","),
 		map[string]bool{
-			"shouldStartWithLowercase":             s.Rules.Lowercase,
-			"shouldContainOnlyEnglish":             s.Rules.English,
-			"shouldNotContainSpecialSymbols":       s.Rules.Symbols,
-			"shouldNotContainSensitiveInformation": s.Rules.Sensitive,
+			"shouldStartWithLowercase":             s.Rules.RuleLowercase,
+			"shouldContainOnlyEnglish":             s.Rules.RuleEnglish,
+			"shouldNotContainSpecialSymbols":       s.Rules.RuleSymbols,
+			"shouldNotContainSensitiveInformation": s.Rules.RuleSensitive,
 		},
 	)
 
 	UseConfig(cfg)
 
-	return &Plugin{cfg: cfg}, nil
+	return &loglintPlugin{cfg: cfg}, nil
 }
 
-func (p *Plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
+func (p *loglintPlugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	return []*analysis.Analyzer{Analyzer}, nil
 }
 
-func (p *Plugin) GetLoadMode() string {
+func (p *loglintPlugin) GetLoadMode() string {
 	return register.LoadModeTypesInfo
 }

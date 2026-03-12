@@ -62,14 +62,11 @@ func DefaultConfig() *Config {
 		})
 }
 
-var config Config
-
-var configInitialized = false
+var config *Config
 
 func UseConfig(cfg *Config) {
-	if configInitialized {
+	if config != nil {
 		return
 	}
-	config = *cfg
-	configInitialized = true
+	config = cfg
 }
