@@ -1,7 +1,0 @@
-# .custom-gcl.yml
-version: v2.4.0  # версия golangci-lint
-
-plugins:
-  - module: "github.com/Sene4ka/loglint"
-    path: ./pkg/loglint  # локальный путь, если не published
-    description: "Log message linter"
