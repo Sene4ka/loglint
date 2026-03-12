@@ -45,7 +45,7 @@ jobs:
         uses: codecov/codecov-action@v4
         if: matrix.os == 'ubuntu-latest'
         with:
-          file: ./coverage.out
+          file: ./coverage/coverage.out
           fail_ci_if_error: false
 
   build:
