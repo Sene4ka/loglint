@@ -1,59 +1,131 @@
 package analyzer
 
 import (
+	"fmt"
 	"go/token"
-	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
 )
 
-func checkShouldStartWithLowercase(parts []ExprPart, pass *analysis.Pass) {
-	for _, part := range parts {
-		if part.Type == PartVar {
-			continue
-		}
+type Pass interface {
+	ReportWarning(d analysis.Diagnostic)
+}
 
-		msg := part.Value
-		pos := part.Pos
+type passWrapper struct {
+	pass *analysis.Pass
+}
 
-		if len(msg) == 0 {
-			continue
-		}
+func newPassWrapper(pass *analysis.Pass) passWrapper {
+	return passWrapper{pass: pass}
+}
 
-		r, size := utf8.DecodeRuneInString(msg)
-		if r == utf8.RuneError && size == 1 {
-			return
-		}
+func (p passWrapper) ReportWarning(d analysis.Diagnostic) {
+	p.pass.Report(d)
+}
 
-		if unicode.IsUpper(r) {
-			diag := analysis.Diagnostic{
-				Pos:      pos,
-				Category: "Warning",
-				Message:  "log message should start with lowercase letter",
-			}
-
-			fixed := string(unicode.ToLower(r)) + msg[size:]
-			diag.SuggestedFixes = []analysis.SuggestedFix{
-				{
-					Message: "Convert first letter to lowercase",
-					TextEdits: []analysis.TextEdit{
-						{
-							Pos:     pos,
-							End:     pos + token.Pos(size),
-							NewText: []byte(fixed),
-						},
-					},
-				},
-			}
-
-			pass.Report(diag)
-		}
+func createLowercaseFix(pos token.Pos, msg string, size int) analysis.SuggestedFix {
+	fixed := string(unicode.ToLower(rune(msg[0]))) + msg[size:]
+	return analysis.SuggestedFix{
+		Message: "Convert first letter to lowercase",
+		TextEdits: []analysis.TextEdit{{
+			Pos:     pos,
+			End:     pos + token.Pos(size),
+			NewText: []byte(fixed),
+		}},
 	}
 }
 
-func checkShouldContainOnlyEnglish(parts []ExprPart, pass *analysis.Pass) {
+func createRemoveNonLatinFix(pos token.Pos, msg string, byteIdx int) analysis.SuggestedFix {
+	r, size := utf8.DecodeRuneInString(msg[byteIdx:])
+	fixed := msg[:byteIdx] + msg[byteIdx+size:]
+	return analysis.SuggestedFix{
+		Message: fmt.Sprintf("Remove non-Latin character: %q", r),
+		TextEdits: []analysis.TextEdit{{
+			Pos:     pos + token.Pos(byteIdx),
+			End:     pos + token.Pos(byteIdx+size),
+			NewText: []byte(fixed),
+		}},
+	}
+}
+
+func createRemoveSpecialSymbolFix(pos token.Pos, msg string, byteIdx int) analysis.SuggestedFix {
+	r, size := utf8.DecodeRuneInString(msg[byteIdx:])
+	fixed := msg[:byteIdx] + msg[byteIdx+size:]
+	return analysis.SuggestedFix{
+		Message: fmt.Sprintf("Remove special symbol: %q", r),
+		TextEdits: []analysis.TextEdit{{
+			Pos:     pos + token.Pos(byteIdx),
+			End:     pos + token.Pos(byteIdx+size),
+			NewText: []byte(fixed),
+		}},
+	}
+}
+
+func createRedactFix(pos, end token.Pos) analysis.SuggestedFix {
+	return analysis.SuggestedFix{
+		Message: "Replace with [REDACTED]",
+		TextEdits: []analysis.TextEdit{{
+			Pos:     pos,
+			End:     end,
+			NewText: []byte("[REDACTED]"),
+		}},
+	}
+}
+
+func createRemoveVariableFix(pos, end token.Pos) analysis.SuggestedFix {
+	return analysis.SuggestedFix{
+		Message: "Remove the variable",
+	}
+}
+
+/*
+checkShouldStartWithLowercase checks only first ExprPart
+if it is of type PartConst - check first rune
+if it is other/variable type - then it is undetermined if it starts with uppercase or no
+*/
+func checkShouldStartWithLowercase(parts []ExprPart, pass Pass) {
+	if len(parts) == 0 {
+		return
+	}
+
+	part := parts[0]
+
+	if part.Type != PartConst {
+		return
+	}
+
+	msg := part.Value
+	pos := part.Pos
+
+	// should be merged before, so no other PartConst coming next, only other types
+	if len(msg) == 0 {
+		return
+	}
+
+	r, size := utf8.DecodeRuneInString(msg)
+	if r == utf8.RuneError && size == 1 {
+		return
+	}
+
+	if unicode.IsUpper(r) {
+		diag := analysis.Diagnostic{
+			Pos:      pos,
+			Category: "Warning",
+			Message:  "log message should start with lowercase letter",
+		}
+
+		diag.SuggestedFixes = []analysis.SuggestedFix{
+			createLowercaseFix(pos, msg, size),
+		}
+
+		pass.ReportWarning(diag)
+	}
+}
+
+// check that all direct and underlying const parts is English only
+func checkShouldContainOnlyEnglish(parts []ExprPart, pass Pass) {
 	for _, part := range parts {
 		if part.Type == PartVar {
 			continue
@@ -62,7 +134,7 @@ func checkShouldContainOnlyEnglish(parts []ExprPart, pass *analysis.Pass) {
 		msg := part.Value
 		pos := part.Pos
 		if len(msg) == 0 {
-			return
+			continue
 		}
 
 		for i, r := range msg {
@@ -72,15 +144,19 @@ func checkShouldContainOnlyEnglish(parts []ExprPart, pass *analysis.Pass) {
 					Pos:      charPos,
 					Category: "Warning",
 					Message:  "log message should contain only English letters",
+					SuggestedFixes: []analysis.SuggestedFix{
+						createRemoveNonLatinFix(pos, msg, i),
+					},
 				}
-				pass.Report(diag)
+				pass.ReportWarning(diag)
 				return
 			}
 		}
 	}
 }
 
-func checkShouldNotContainSpecialSymbols(parts []ExprPart, pass *analysis.Pass) {
+// checks that all direct and underlying const parts do not contain special symbols
+func checkShouldNotContainSpecialSymbols(parts []ExprPart, pass Pass) {
 	for _, part := range parts {
 		if part.Type == PartVar {
 			continue
@@ -88,7 +164,7 @@ func checkShouldNotContainSpecialSymbols(parts []ExprPart, pass *analysis.Pass) 
 		msg := part.Value
 		pos := part.Pos
 		if len(msg) == 0 {
-			return
+			continue
 		}
 		for i, r := range msg {
 			if !unicode.In(r, unicode.Letter, unicode.Digit, unicode.Space) && !config.allowedSymbolsMap[r] {
@@ -97,75 +173,89 @@ func checkShouldNotContainSpecialSymbols(parts []ExprPart, pass *analysis.Pass) 
 					Pos:      charPos,
 					Category: "Warning",
 					Message:  "log message should not contain special symbols or emojis",
+					SuggestedFixes: []analysis.SuggestedFix{
+						createRemoveSpecialSymbolFix(pos, msg, i),
+					},
 				}
-				pass.Report(diag)
+				pass.ReportWarning(diag)
 				return
 			}
 		}
 	}
 }
 
-func checkShouldNotContainSensitiveInformation(parts []ExprPart, pass *analysis.Pass) {
-	varsCnt := 0
+/*
+Checks that all const parts and variables do not contain sensitive keywords
+Reports if sensitive keyword found in text as separate words and,
+if found, also reports variables which contain, but might not be equal to, this keyword
+*/
+// Also separately checks for variables which names are equal to sensitive keywords and reports them
+//
+func checkShouldNotContainSensitiveInformation(parts []ExprPart, pass Pass) {
+	var vars []ExprPart
 	for _, part := range parts {
 		if part.Type == PartVar {
-			varsCnt++
-		}
-	}
-
-	vars := make([]ExprPart, 0, varsCnt)
-	diagnosedVars := make([]bool, varsCnt)
-	varIdx := make(map[int]int, varsCnt)
-	varReverseIdx := make(map[int]int, varsCnt)
-
-	for i, part := range parts {
-		if part.Type == PartVar {
-			varIdx[i] = len(vars)
-			varReverseIdx[len(vars)] = i
 			vars = append(vars, part)
 		}
 	}
 
-	for i, part := range parts {
-		if part.Type == PartConst {
-			for kIndex, r := range config.sensitiveKeywordsRegex {
-				if matches := r.FindAllStringIndex(part.Value, -1); len(matches) > 0 && varsCnt > 0 {
-					for _, match := range matches {
-						pass.Report(analysis.Diagnostic{
-							Pos:      part.Pos + token.Pos(match[0]),
-							End:      part.Pos + token.Pos(match[1]),
-							Category: "Warning",
-							Message:  "log message should not contain sensitive information",
-						})
-					}
-					for j, v := range vars {
-						if !diagnosedVars[j] {
-							found := strings.Contains(v.Value, config.SensitiveKeywords[kIndex])
-							if found {
-								diagnosedVars[j] = true
-								pass.Report(analysis.Diagnostic{
-									Pos:      part.Pos,
-									End:      part.End,
-									Category: "Warning",
-									Message:  "log message should not contain sensitive information",
-								})
-							}
+	diagnosedVars := make([]bool, len(vars))
+
+	for _, part := range parts {
+		if part.Type != PartConst {
+			continue
+		}
+
+		for _, r := range config.sensitiveKeywordsRegex {
+			if matches := r.FindAllStringIndex(part.Value, -1); len(matches) > 0 && len(vars) > 0 {
+				for _, match := range matches {
+					start, end := match[0], match[1]
+
+					if start > 0 {
+						before, _ := utf8.DecodeLastRuneInString(part.Value[:start])
+						first, _ := utf8.DecodeRuneInString(part.Value[start:])
+						if unicode.IsLetter(before) && !unicode.IsUpper(first) {
+							continue
 						}
 					}
+
+					if end < len(part.Value) {
+						after, _ := utf8.DecodeRuneInString(part.Value[end:])
+						if unicode.IsLetter(after) && !unicode.IsUpper(after) {
+							continue
+						}
+					}
+
+					pass.ReportWarning(analysis.Diagnostic{
+						Pos:      part.Pos + token.Pos(start),
+						End:      part.Pos + token.Pos(end),
+						Category: "Warning",
+						Message:  "log message should not contain sensitive information",
+						SuggestedFixes: []analysis.SuggestedFix{
+							createRedactFix(part.Pos+token.Pos(start), part.End+token.Pos(end)),
+						},
+					})
 				}
 			}
-		} else if part.Type == PartVar {
-			if res, ok := varIdx[i]; ok && !diagnosedVars[res] {
-				for _, kw := range config.SensitiveKeywords {
-					if part.Value == kw {
-						pass.Report(analysis.Diagnostic{
-							Pos:      part.Pos,
-							End:      part.End,
-							Category: "Warning",
-							Message:  "log message should not contain sensitive information",
-						})
-					}
-				}
+		}
+	}
+
+	for i, v := range vars {
+		if diagnosedVars[i] {
+			continue
+		}
+
+		for _, r := range config.sensitiveKeywordsRegex {
+			if r.MatchString(v.Value) {
+				pass.ReportWarning(analysis.Diagnostic{
+					Pos:      v.Pos,
+					End:      v.End,
+					Category: "Warning",
+					Message:  "log variable name suggests sensitive data",
+					SuggestedFixes: []analysis.SuggestedFix{
+						createRemoveVariableFix(v.Pos, v.End),
+					},
+				})
 			}
 		}
 	}

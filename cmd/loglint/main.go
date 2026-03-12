@@ -1,23 +1,26 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"os"
+
 	"github.com/Sene4ka/log-linter/pkg/analyzer"
 
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
 func main() {
-	config := analyzer.NewConfig(
-		[]rune{':', '_', '='},
-		[]string{"key", "password", "secret", "apiKey", "api_key", "auth", "token", "auth_token", "authToken"},
-		map[string]bool{
-			"shouldStartWithLowercase":             true,
-			"shouldContainOnlyEnglish":             true,
-			"shouldNotContainSpecialSymbols":       true,
-			"shouldNotContainSensitiveInformation": true,
-		},
-	)
-	analyzer.UseConfig(config)
+	analyzer.RegisterConfigFlag(flag.CommandLine)
+
+	configPath := flag.Lookup("config").Value.String()
+	cfg, err := analyzer.LoadConfigFromFile(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "loglint: config error: %v\n", err)
+		cfg = analyzer.DefaultConfig()
+	}
+
+	analyzer.UseConfig(cfg)
 
 	singlechecker.Main(analyzer.Analyzer)
 }

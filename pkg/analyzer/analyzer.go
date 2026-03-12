@@ -1,18 +1,60 @@
 package analyzer
 
 import (
+	"flag"
 	"go/ast"
 
 	"golang.org/x/tools/go/analysis"
 )
 
 var Analyzer = &analysis.Analyzer{
-	Name: "loglint",
-	Doc:  "reports wrong log function usage",
-	Run:  run,
+	Name:  "loglint",
+	Doc:   "Reports wrong log function usages",
+	Run:   run,
+	Flags: flag.FlagSet{},
+}
+
+var (
+	allowedSpecialSymbolsFlag string
+	sensitiveKeywordsFlag     string
+	ruleLowercaseFlag         bool
+	ruleEnglishFlag           bool
+	ruleSymbolsFlag           bool
+	ruleSensitiveFlag         bool
+)
+
+func init() {
+	Analyzer.Flags.StringVar(&allowedSpecialSymbolsFlag, "allowed-special-symbols",
+		": _ = %", "Allowed special symbols (space-separated)")
+	Analyzer.Flags.StringVar(&sensitiveKeywordsFlag, "sensitive-keywords",
+		"key,password,secret,auth,token", "Sensitive keywords (comma-separated)")
+	Analyzer.Flags.BoolVar(&ruleLowercaseFlag, "rule-lowercase", true,
+		"Enable shouldStartWithLowercase rule")
+	Analyzer.Flags.BoolVar(&ruleEnglishFlag, "rule-english", true,
+		"Enable shouldContainOnlyEnglish rule")
+	Analyzer.Flags.BoolVar(&ruleSymbolsFlag, "rule-symbols", true,
+		"Enable shouldNotContainSpecialSymbols rule")
+	Analyzer.Flags.BoolVar(&ruleSensitiveFlag, "rule-sensitive", true,
+		"Enable shouldNotContainSensitiveInformation rule")
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	if !configInitialized {
+		rules := map[string]bool{
+			"shouldStartWithLowercase":             ruleLowercaseFlag,
+			"shouldContainOnlyEnglish":             ruleEnglishFlag,
+			"shouldNotContainSpecialSymbols":       ruleSymbolsFlag,
+			"shouldNotContainSensitiveInformation": ruleSensitiveFlag,
+		}
+
+		cfg := LoadConfigFromFlags(
+			allowedSpecialSymbolsFlag,
+			sensitiveKeywordsFlag,
+			rules,
+		)
+		UseConfig(cfg)
+	}
+
 	for _, file := range pass.Files {
 		ast.Inspect(file, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
@@ -28,22 +70,35 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				return true
 			}
 
-			parts := make([]ExprPart, 0, 2)
+			partsArr := make([][]ExprPart, 0, len(call.Args))
 
-			parts = getExpressionParts(call.Args[0], parts)
-
-			parts = foldConstantStrings(parts)
-
-			if len(call.Args) > 1 {
-				for _, arg := range call.Args[1:] {
-					parts = getExpressionParts(arg, parts)
-				}
+			ln := 0
+			for _, arg := range call.Args {
+				argParts := getExpressionParts(arg, nil)
+				argParts = foldConstantStrings(argParts)
+				ln += len(argParts)
+				partsArr = append(partsArr, argParts)
 			}
 
-			checkShouldStartWithLowercase(parts, pass)
-			checkShouldContainOnlyEnglish(parts, pass)
-			checkShouldNotContainSpecialSymbols(parts, pass)
-			checkShouldNotContainSensitiveInformation(parts, pass)
+			parts := make([]ExprPart, 0, ln)
+			for _, argParts := range partsArr {
+				parts = append(parts, argParts...)
+			}
+
+			p := newPassWrapper(pass)
+
+			if config.rulesSet.shouldStartWithLowercase {
+				checkShouldStartWithLowercase(parts, p)
+			}
+			if config.rulesSet.shouldContainOnlyEnglish {
+				checkShouldContainOnlyEnglish(parts, p)
+			}
+			if config.rulesSet.shouldNotContainSpecialSymbols {
+				checkShouldNotContainSpecialSymbols(parts, p)
+			}
+			if config.rulesSet.shouldNotContainSensitiveInformation {
+				checkShouldNotContainSensitiveInformation(parts, p)
+			}
 
 			return true
 		})

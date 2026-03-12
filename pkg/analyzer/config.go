@@ -29,7 +29,7 @@ func NewConfig(allowedSpecialSymbols []rune, sensitiveKeywords []string, rules m
 	keywordsRegexp := make([]*regexp.Regexp, 0, len(sensitiveKeywords))
 	for _, keyword := range sensitiveKeywords {
 		escaped := regexp.QuoteMeta(keyword)
-		pattern := `(?i)\b` + escaped + `\b`
+		pattern := `(?i)` + escaped
 		keywordsRegexp = append(keywordsRegexp, regexp.MustCompile(pattern))
 	}
 
@@ -50,8 +50,26 @@ func NewConfig(allowedSpecialSymbols []rune, sensitiveKeywords []string, rules m
 	}
 }
 
+func DefaultConfig() *Config {
+	return NewConfig(
+		[]rune{':', '_', '-', '=', '%'},
+		[]string{"key", "password", "secret", "auth", "token", "server", "name"},
+		map[string]bool{
+			"shouldStartWithLowercase":             true,
+			"shouldContainOnlyEnglish":             true,
+			"shouldNotContainSpecialSymbols":       true,
+			"shouldNotContainSensitiveInformation": true,
+		})
+}
+
 var config Config
 
+var configInitialized bool = false
+
 func UseConfig(cfg *Config) {
+	if configInitialized {
+		return
+	}
 	config = *cfg
+	configInitialized = true
 }

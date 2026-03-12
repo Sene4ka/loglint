@@ -109,6 +109,10 @@ func getExpressionParts(expr ast.Expr, output []ExprPart) []ExprPart {
 			Type:  PartVar,
 		})
 	case *ast.CallExpr:
+		/*
+			for now ignore function selector and method, works well with fmt like Sprint/Sprintf,
+			but can false-positive on other functions which (depending on their implementation)
+		*/
 		for _, arg := range e.Args {
 			output = getExpressionParts(arg, output)
 		}
