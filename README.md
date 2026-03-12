@@ -25,7 +25,7 @@ git clone https://github.com/Sene4ka/loglint.git
 cd log-linter
 
 go build -o loglint ./cmd/loglint
-# or
+# Or
 go install ./cmd/loglint
 ```
 
