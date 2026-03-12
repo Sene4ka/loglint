@@ -13,9 +13,7 @@ linters-settings:
       original-url: "github.com/Sene4ka/loglint"
       settings:
         allowed_special_symbols: "! . ,"
-        sensitive_keywords:
-          - word1
-          - word2
+        sensitive_keywords: "word1,word2"
         rules:
           rule_lowercase: true
           rule_english: true

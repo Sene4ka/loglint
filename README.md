@@ -57,7 +57,7 @@ loglint ./pkg/... ./cmd/...
 
 #### See [./loglint.example.yml](.loglint.example.yml) for config options
 
-### Golangci-lint plugin (Doesn't work that good on Windows)
+### As a custom Golangci-lint plugin (In practice, this doesn't work for some reason, although it should)
 
 #### Create .custom-gcl.yml [Example](.custom-gcl.example.yml)
 
@@ -69,3 +69,9 @@ golangci-lint custom
 ```
 
 #### Enable plugin in .golangci.yml [Example with configuration settings](.golangci.example.yml)
+
+#### Run your custom golangci-lint
+
+```bash
+./your-custom-name [OPTIONS]
+```
