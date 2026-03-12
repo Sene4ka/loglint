@@ -24,8 +24,13 @@ go install github.com/Sene4ka/loglint/cmd/loglint@latest
 
 ```bash
 git clone https://github.com/Sene4ka/loglint.git
+```
+
+```bash
 cd loglint
 ```
+
+Then
 
 ```bash
 go build -o loglint ./cmd/loglint
